@@ -2,13 +2,13 @@ Package: SMdb
 Title: PKG_TITLE
 Version: 0.0.0.9000
 Authors@R: 
-    person("Chris", "Donovan", , "christopher.donovan@uvm.edu", role = c("aut", "cre"))
+    person("Christopher", "Donovan", , "christopher.donovan@uvm.edu", role = c("aut", "cre"))
 Description: PKG_DESC.
 License: AGPL (>= 3)
 Imports: 
     config,
     golem,
-    shinipsum,
+    RMySQL,
     shiny
 Encoding: UTF-8
 LazyData: true

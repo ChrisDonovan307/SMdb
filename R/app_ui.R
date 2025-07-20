@@ -3,14 +3,20 @@
 #' @param request Internal parameter for `{shiny}`.
 #'     DO NOT REMOVE.
 #' @import shiny
+#' @import bslib
 #' @noRd
 app_ui <- function(request) {
   tagList(
     # Leave this function for adding external resources
     golem_add_external_resources(),
+
     # Your application UI logic
+    tags$h1(
+      'Sustainability Metrics Database',
+      style = 'padding-left: 20px; padding-top: 10px;'
+    ),
     fluidPage(
-      # golem::golem_welcome_page() # Remove this line to start building your UI
+      theme = bslib::bs_theme(bootswatch = 'lux'),
       mod_db_ui("db_1")
     )
   )

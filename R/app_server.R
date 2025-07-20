@@ -6,5 +6,4 @@
 #' @noRd
 app_server <- function(input, output, session) {
   mod_db_server("db_1")
-  # mod_db_server("random_plot")
 }
