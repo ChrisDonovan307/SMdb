@@ -17,8 +17,9 @@ db_connect <- function() {
     dbname = 'FSRC_METRICS'
   )
   onStop(function() {
-    message("Closing DB connection")
-    dbDisconnect(con)
+    if (exists("con") && !is.null(con)) {
+      dbDisconnect(con)
+    }
   })
   return(con)
 }

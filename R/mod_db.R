@@ -16,20 +16,27 @@
 mod_db_ui <- function(id) {
   ns <- NS(id)
   tagList(
+    mod_database_ui(ns('database')),
     page_sidebar(
       sidebar = sidebar(
         tags$h3("Filters"),
         selectizeInput(
-          ns('select_variable'),
+          ns('select_dimension'),
+          "Dimension",
+          choices = c('Economics', 'Environment', 'Human', 'Production', 'Social'),
+          multiple = TRUE
+        ),
+        selectizeInput(
+          ns('select_metric'),
           "Metric",
           choices = NULL,
-          multiple = FALSE
+          multiple = TRUE
         ),
         selectizeInput(
           ns('select_fips'),
           "FIPS Code",
           choices = NULL,
-          multiple = FALSE
+          multiple = TRUE
         ),
         actionBttn(
           ns("query"),
@@ -51,26 +58,52 @@ mod_db_server <- function(id){
     ns <- session$ns
     con <- db_connect()
 
-    # Get choices for filters
-    fips_available <- dbGetQuery(
-      con,
-      'SELECT DISTINCT fips FROM metrics ORDER BY fips'
-    )
-    updateSelectizeInput(
-      inputId = "select_fips",
-      choices = unique(fips_available$fips),
-      server = TRUE
-    )
+    # Use database module
+    database_functions <- mod_database_server('database')
 
-    # Filter metrics table from database lazily
-    filtered_df <- reactive({
-      dat_db <- tbl(con, 'metrics')
-      if (!is.null(input$select_fips) && length(input$select_fips) > 0) {
-        dat_db <- dat_db %>%
-          filter(fips == input$select_fips)
-      }
-      collect(dat_db)
+    # Update filter choices using database module functions
+    observe({
+      updateSelectizeInput(
+        inputId = "select_fips",
+        choices = database_functions$get_fips_choices(),
+        server = TRUE,
+        selected = NULL
+      )
     })
+    observe({
+      updateSelectizeInput(
+        inputId = "select_dimension",
+        choices = c('Economics', 'Environment', 'Health', 'Production', 'Social'),
+        server = TRUE,
+        selected = NULL
+      )
+    })
+    observe({
+      updateSelectizeInput(
+        inputId = "select_metric",
+        choices = database_functions$get_metric_choices(input$select_dimension),
+        server = TRUE,
+        selected = NULL
+      )
+    })
+
+    # Database function for getting filtered data
+    filtered_df <- reactive({
+      database_functions$get_filtered_data(
+        fips_filter = input$select_fips,
+        metric_filter = input$select_metric,
+        dimension_filter = input$select_dimension
+      )
+    })
+    # Filter metrics table from database lazily
+    # filtered_df <- reactive({
+    #   dat_db <- tbl(con, 'metrics')
+    #   if (!is.null(input$select_fips) && length(input$select_fips) > 0) {
+    #     dat_db <- dat_db %>%
+    #       filter(fips == input$select_fips)
+    #   }
+    #   collect(dat_db)
+    # })
 
     # Make table appear when user hits query
     output$table_ui <- renderUI({
@@ -81,8 +114,10 @@ mod_db_server <- function(id){
     # Use filtered df from db to make table
     output$table <- renderReactable({
       df <- filtered_df()
+
       if ('id' %in% names(df)) df$id <- NULL
-      names(df) <- c('FIPS', 'Year', 'Variable Name', 'Value')
+      names(df) <- snakecase::to_title_case(names(df))
+      names(df) <- sub('Fips', 'FIPS Code', names(df))
 
       get_reactable(
         df,
@@ -92,8 +127,8 @@ mod_db_server <- function(id){
             background = '#f7f7f8',
             fontSize = '16px'
           )
-        ),
-        columns = list('Variable Name' = colDef(minWidth = 200))
+        )
+        # columns = list('Variable Name' = colDef(minWidth = 200))
       )
     })
   })
