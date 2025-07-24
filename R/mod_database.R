@@ -23,6 +23,7 @@ mod_database_ui <- function(id) {
 #' @description Handles database connection and data retrieval operations
 #'
 #' @param id Internal parameter for {shiny}.
+#' @param query_trigger Reactive value that triggers data refresh (e.g., button click)
 #'
 #' @return A list containing reactive functions for database operations
 #'
@@ -31,7 +32,8 @@ mod_database_server <- function(id,
                                 dimension_input = reactive(NULL),
                                 index_input = reactive(NULL),
                                 indicator_input = reactive(NULL),
-                                geography_input = reactive(NULL)) {
+                                geography_input = reactive(NULL),
+                                query_trigger = reactive(NULL)) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -114,12 +116,12 @@ mod_database_server <- function(id,
     # Function to filter metrics data based on parameters
     # NOTE: this could be pulled out as a utils function
     # and DRY refactor
-    get_filtered_data <- function(dimension_filter = NULL,
-                                  # fips_filter = NULL,
-                                  index_filter = NULL,
-                                  indicator_filter = NULL,
-                                  metric_filter = NULL,
-                                  geography_filter = NULL) {
+    get_filtered_data_internal <- function(dimension_filter = NULL,
+                                           # fips_filter = NULL,
+                                           index_filter = NULL,
+                                           indicator_filter = NULL,
+                                           metric_filter = NULL,
+                                           geography_filter = NULL) {
 
       dat_db <- tbl(con, 'metrics')
 
@@ -172,6 +174,28 @@ mod_database_server <- function(id,
 
       collect(dat_db)
     }
+
+    # Store the filtered data that only updates when query button is clicked
+    filtered_data <- reactiveVal(data.frame())
+
+    # Update filtered data only when query_trigger changes (button is clicked)
+    observeEvent(query_trigger(), {
+      req(query_trigger()) # Ensure the trigger is not NULL/0
+
+      new_data <- get_filtered_data_internal(
+        dimension_filter = dimension_input(),
+        index_filter = index_input(),
+        indicator_filter = indicator_input(),
+        geography_filter = geography_input()
+      )
+
+      filtered_data(new_data)
+    })
+
+    # Reactive function that returns the stored filtered data
+    get_filtered_data <- reactive({
+      filtered_data()
+    })
 
     # Return list of functions that other modules can use
     return(list(

@@ -99,7 +99,8 @@ mod_db_server <- function(id){
       'database',
       dimension_input = reactive(input$select_dimension),
       index_input = reactive(input$select_index),
-      indicator_input = reactive(input$select_indicator)
+      indicator_input = reactive(input$select_indicator),
+      query_trigger = reactive(input$query)
     )
 
     # Update filter choices using database module functions
@@ -148,16 +149,17 @@ mod_db_server <- function(id){
     })
 
     # Database function for getting filtered data
-    filtered_df <- reactive({
-      database_functions$get_filtered_data(
-        dimension_filter = input$select_dimension,
-        index_filter = input$select_index,
-        indicator_filter = input$select_indicator,
-        metric_filter = input$select_metric,
-        # fips_filter = input$select_fips,
-        geography_filter = input$select_geography
-      )
-    })
+    # filtered_df <- reactive({
+    #   database_functions$get_filtered_data(
+    #     dimension_filter = input$select_dimension,
+    #     index_filter = input$select_index,
+    #     indicator_filter = input$select_indicator,
+    #     metric_filter = input$select_metric,
+    #     # fips_filter = input$select_fips,
+    #     geography_filter = input$select_geography
+    #   )
+    # })
+    filtered_df <- database_functions$get_filtered_data
 
     # Make table appear when user hits query
     output$table_ui <- renderUI({
