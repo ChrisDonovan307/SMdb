@@ -12,7 +12,10 @@
 #' @import dbplyr
 mod_database_ui <- function(id) {
   ns <- NS(id)
+
+  # Don't need a ui for this, all server side
   tagList()
+
 }
 
 #' Database Module Server Functions
@@ -45,54 +48,86 @@ mod_database_server <- function(id) {
         sort()
     })
 
-    # Get framework from metadata, including variable names. Use to populate filters
-    get_framework <- reactive({
-      tbl(con, 'metadata') %>%
-        select(dimension, index, indicator, metric, variable_name) %>%
-        collect()
-    })
-
-    # # Reactive function to get available metrics
-    # get_metric_choices <- reactive({
-    #   vars <- dbGetQuery(con, 'SELECT DISTINCT metric FROM metadata ORDER BY metric')
-    #   sort(unique(vars$metric))
-    # })
-
-    get_metric_choices <- function(dimension_filter = NULL) {
-      frame <- get_framework()
-      if (!is.null(dimension_filter) && dimension_filter != '') {
-        frame <- frame %>%
-          filter(dimension == tolower(dimension_filter))
+    # Function to get available index choices based on inputs and metadata
+    get_index_choices <- function(dimension_filter = NULL) {
+      if (!is.null(dimension_filter) && any(dimension_filter != '')) {
+        out <- metadata %>%
+          filter(dimension %in% tolower(dimension_filter)) %>%
+          pull(index) %>%
+          unique()
+      } else {
+        out <- metadata$index %>%
+          unique()
       }
-      sort(frame$metric)
+      sort(out)
+    }
+
+    # Get indicator choices
+    get_indicator_choices <- function(index_filter = NULL) {
+      if (!is.null(index_filter) && any(index_filter != '')) {
+        out <- metadata %>%
+          filter(index %in% tolower(index_filter)) %>%
+          pull(indicator) %>%
+          unique()
+      } else {
+        out <- metadata$indicator %>%
+          unique()
+      }
+      sort(out)
+    }
+
+    # Function to get available metric choices based on metadata
+    get_metric_choices <- function(indicator_filter = NULL) {
+      if (!is.null(indicator_filter) && any(indicator_filter != '')) {
+        out <- metadata %>%
+          filter(indicator %in% tolower(indicator_filter)) %>%
+          pull(metric)
+      } else {
+        out <- metadata$metric
+      }
+      sort(out)
     }
 
     # Function to filter metrics data based on parameters
+    # NOTE: this could be pulled out as a utils function
     get_filtered_data <- function(fips_filter = NULL,
-                                  metric_filter = NULL,
-                                  dimension_filter = NULL) {
-      dat_db <- tbl(con, 'metrics')
+                                  dimension_filter = NULL,
+                                  index_filter = NULL,
+                                  indicator_filter = NULL,
+                                  metric_filter = NULL) {
+      # frame <- tbl(con, 'metadata') %>%
+      #   select(dimension, index, indicator, metric, variable_name) %>%
+      #   unique()
 
-      # Dimension
-      if (!is.null(dimension_filter) && length(dimension_filter) > 0 && dimension_filter != '') {
-        match <- framework$variable_name[framework$dimension == tolower(dimension_filter)]
+      dat_db <- tbl(con, 'metrics')
+        # left_join(frame)
+
+      # Start with indicator, if nothing, go backward through index, then dimension
+      if (!is.null(indicator_filter) && length(indicator_filter) > 0 && any(indicator_filter != '')) {
+        match <- unique(framework$variable_name[framework$indicator_filter %in% tolower(indicator_filter)])
+        dat_db <- filter(dat_db, variable_name %in% match)
+      } else if (!is.null(dimension_filter) && length(dimension_filter) > 0 && any(dimension_filter != '')) {
+        match <- framework$variable_name[framework$dimension %in% tolower(dimension_filter)]
+        dat_db <- filter(dat_db, variable_name %in% match)
+      } else if (!is.null(index_filter) && length(index_filter) > 0 && any(index_filter != '')) {
+        match <- unique(framework$variable_name[framework$index %in% tolower(index_filter)])
+        dat_db <- filter(dat_db, variable_name %in% match)
+      } else if (!is.null(metric_filter) && length(metric_filter) > 0 && any(metric_filter != '')) {
+        match <- unique(framework$variable_name[framework$metric %in% tolower(metric_filter)])
         dat_db <- filter(dat_db, variable_name %in% match)
       }
 
       # Filter by FIPS selection
-      if (!is.null(fips_filter) && length(fips_filter) > 0 && fips_filter != '') {
-        dat_db <- filter(dat_db, fips == fips_filter)
+      if (!is.null(fips_filter) && length(fips_filter) > 0 && any(fips_filter != '')) {
+        dat_db <- filter(dat_db, fips %in% fips_filter)
       }
 
-      # Have to join with metadata to get metrics and other
-      if (!is.null(metric_filter) && length(metric_filter) > 0 && metric_filter != '') {
-        meta_db <- tbl(con, 'metadata')
-        dat_db <- meta_db %>%
-          select(dimension, index, indicator, metric, variable_name) %>%
-          left_join(dat_db) %>%
-          filter(metric == metric_filter)
-        print('\n*Filtered dat_db*')
-      }
+      # Add framework info
+      meta_db <- tbl(con, 'metadata')
+      # browser()
+      dat_db <- meta_db %>%
+        select(dimension, index, indicator, metric, variable_name) %>%
+        left_join(dat_db)
 
       collect(dat_db)
     }
@@ -100,6 +135,8 @@ mod_database_server <- function(id) {
     # Return list of functions that other modules can use
     return(list(
       get_fips_choices = get_fips_choices,
+      get_index_choices = get_index_choices,
+      get_indicator_choices = get_indicator_choices,
       get_metric_choices = get_metric_choices,
       get_filtered_data = get_filtered_data,
       connection = reactive(con)

@@ -27,6 +27,18 @@ mod_db_ui <- function(id) {
           multiple = TRUE
         ),
         selectizeInput(
+          ns('select_index'),
+          "Index",
+          choices = NULL,
+          multiple = TRUE
+        ),
+        selectizeInput(
+          ns('select_indicator'),
+          "Indicator",
+          choices = NULL,
+          multiple = TRUE
+        ),
+        selectizeInput(
           ns('select_metric'),
           "Metric",
           choices = NULL,
@@ -80,8 +92,24 @@ mod_db_server <- function(id){
     })
     observe({
       updateSelectizeInput(
+        inputId = "select_index",
+        choices = database_functions$get_index_choices(input$select_dimension),
+        server = TRUE,
+        selected = NULL
+      )
+    })
+    observe({
+      updateSelectizeInput(
+        inputId = "select_indicator",
+        choices = database_functions$get_indicator_choices(input$select_index),
+        server = TRUE,
+        selected = NULL
+      )
+    })
+    observe({
+      updateSelectizeInput(
         inputId = "select_metric",
-        choices = database_functions$get_metric_choices(input$select_dimension),
+        choices = database_functions$get_metric_choices(input$select_indicator),
         server = TRUE,
         selected = NULL
       )
@@ -90,20 +118,13 @@ mod_db_server <- function(id){
     # Database function for getting filtered data
     filtered_df <- reactive({
       database_functions$get_filtered_data(
-        fips_filter = input$select_fips,
+        dimension_filter = input$select_dimension,
+        index_filter = input$select_index,
+        indicator_filter = input$select_indicator,
         metric_filter = input$select_metric,
-        dimension_filter = input$select_dimension
+        fips_filter = input$select_fips
       )
     })
-    # Filter metrics table from database lazily
-    # filtered_df <- reactive({
-    #   dat_db <- tbl(con, 'metrics')
-    #   if (!is.null(input$select_fips) && length(input$select_fips) > 0) {
-    #     dat_db <- dat_db %>%
-    #       filter(fips == input$select_fips)
-    #   }
-    #   collect(dat_db)
-    # })
 
     # Make table appear when user hits query
     output$table_ui <- renderUI({
