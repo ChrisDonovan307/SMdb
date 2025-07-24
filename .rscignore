@@ -13,3 +13,4 @@ dev
 man
 vignettes
 tests
+renv.lock
