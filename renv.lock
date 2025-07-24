@@ -195,37 +195,6 @@
       "Maintainer": "Dirk Eddelbuettel <edd@debian.org>",
       "Repository": "CRAN"
     },
-    "SMdb": {
-      "Package": "SMdb",
-      "Version": "0.0.0.9000",
-      "Source": "Local",
-      "Title": "PKG_TITLE",
-      "Authors@R": "person(\"Christopher\", \"Donovan\", , \"christopher.donovan@uvm.edu\", role = c(\"aut\", \"cre\"))",
-      "Description": "PKG_DESC.",
-      "License": "AGPL (>= 3)",
-      "Imports": [
-        "config",
-        "dbplyr",
-        "dplyr",
-        "golem",
-        "RMySQL",
-        "shiny",
-        "shinyWidgets"
-      ],
-      "Encoding": "UTF-8",
-      "LazyData": "true",
-      "RoxygenNote": "7.3.2",
-      "Suggests": [
-        "spelling",
-        "testthat (>= 3.0.0)"
-      ],
-      "Config/testthat/edition": "3",
-      "Language": "en-US",
-      "Author": "Christopher Donovan [aut, cre]",
-      "Maintainer": "Christopher Donovan <christopher.donovan@uvm.edu>",
-      "RemoteType": "local",
-      "RemoteUrl": "."
-    },
     "askpass": {
       "Package": "askpass",
       "Version": "1.2.1",

@@ -1,0 +1,10 @@
+name: SMdb
+title: SMdb
+username: chris-donovan
+account: chris-donovan
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 15119770
+bundleId: 10670479
+url: https://chris-donovan.shinyapps.io/SMdb/
+version: 1
