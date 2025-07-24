@@ -20,9 +20,13 @@ mod_db_ui <- function(id) {
     page_sidebar(
       sidebar = sidebar(
         tags$h3("Filters"),
+        tags$p(
+          # 'Use the filters below to query the database.',
+          'Note that larger queries can take a couple of seconds to retrieve.'
+        ),
         selectizeInput(
           ns('select_dimension'),
-          "Dimension",
+          'Dimension',
           choices = c('Economics', 'Environment', 'Human', 'Production', 'Social'),
           multiple = TRUE
         ),
@@ -44,17 +48,37 @@ mod_db_ui <- function(id) {
           choices = NULL,
           multiple = TRUE
         ),
-        selectizeInput(
-          ns('select_fips'),
-          "FIPS Code",
-          choices = NULL,
-          multiple = TRUE
+        selectInput(
+          ns('select_geography'),
+          'Geography',
+          choices = c('All', 'Counties', 'States'),
+          multiple = FALSE
         ),
+        # selectizeInput(
+        #   ns('select_fips'),
+        #   "FIPS Code",
+        #   choices = NULL,
+        #   multiple = TRUE
+        # ),
         actionBttn(
           ns("query"),
           "Query",
           color = 'success',
-          style = 'pill'
+          style = 'fill',
+          icon = icon(
+            name = 'magnifying-glass',
+            lib = 'font-awesome'
+          )
+        ),
+        downloadBttn(
+          ns('download'),
+          'Download',
+          color = 'success',
+          style = 'fill',
+          icon = icon(
+            name = 'download',
+            lib = 'font-awesome'
+          )
         )
       ),
       uiOutput(ns('table_ui'))
@@ -79,14 +103,14 @@ mod_db_server <- function(id){
     )
 
     # Update filter choices using database module functions
-    observe({
-      updateSelectizeInput(
-        inputId = "select_fips",
-        choices = database_functions$get_fips_choices(),
-        server = TRUE,
-        selected = NULL
-      )
-    })
+    # observe({
+    #   updateSelectizeInput(
+    #     inputId = "select_fips",
+    #     choices = database_functions$get_fips_choices(),
+    #     server = TRUE,
+    #     selected = NULL
+    #   )
+    # })
     observe({
       updateSelectizeInput(
         inputId = "select_dimension",
@@ -130,7 +154,8 @@ mod_db_server <- function(id){
         index_filter = input$select_index,
         indicator_filter = input$select_indicator,
         metric_filter = input$select_metric,
-        fips_filter = input$select_fips
+        # fips_filter = input$select_fips,
+        geography_filter = input$select_geography
       )
     })
 
@@ -160,6 +185,29 @@ mod_db_server <- function(id){
         # columns = list('Variable Name' = colDef(minWidth = 200))
       )
     })
+
+    # Download CSV of table ----
+    output$download <- downloadHandler(
+      filename = function() {
+        paste(
+          Sys.Date(),
+          "_metrics.csv",
+          sep = ""
+        )
+      },
+      content = function(file) {
+        out <- filtered_df() %>%
+          select(
+            fips,
+            year,
+            variable_name,
+            value
+          )
+        write.csv(out, file, row.names = FALSE)
+      },
+      contentType = 'text/csv'
+    )
+
   })
 }
 

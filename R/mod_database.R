@@ -30,7 +30,8 @@ mod_database_ui <- function(id) {
 mod_database_server <- function(id,
                                 dimension_input = reactive(NULL),
                                 index_input = reactive(NULL),
-                                indicator_input = reactive(NULL)) {
+                                indicator_input = reactive(NULL),
+                                geography_input = reactive(NULL)) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -113,13 +114,23 @@ mod_database_server <- function(id,
     # Function to filter metrics data based on parameters
     # NOTE: this could be pulled out as a utils function
     # and DRY refactor
-    get_filtered_data <- function(fips_filter = NULL,
-                                  dimension_filter = NULL,
+    get_filtered_data <- function(dimension_filter = NULL,
+                                  # fips_filter = NULL,
                                   index_filter = NULL,
                                   indicator_filter = NULL,
-                                  metric_filter = NULL) {
+                                  metric_filter = NULL,
+                                  geography_filter = NULL) {
 
       dat_db <- tbl(con, 'metrics')
+
+      # Filter by geography type
+      if (!is.null(geography_filter) && length(geography_filter) > 0 && any(geography_filter != '')) {
+        if (geography_filter == 'Counties') {
+          dat_db <- filter(dat_db, str_length(fips) == 5)
+        } else if (geography_filter == 'States') {
+          dat_db <- filter(dat_db, str_length(fips) == 2)
+        }
+      }
 
       # Start filtering by indicator, go backward through index, then dimension
       # So we avoid filtering more than we need to if we went dim -> indicator
@@ -137,10 +148,10 @@ mod_database_server <- function(id,
         dat_db <- filter(dat_db, variable_name %in% match)
       }
 
-      # Filter by FIPS selection
-      if (!is.null(fips_filter) && length(fips_filter) > 0 && any(fips_filter != '')) {
-        dat_db <- filter(dat_db, fips %in% fips_filter)
-      }
+      # # Filter by FIPS selection
+      # if (!is.null(fips_filter) && length(fips_filter) > 0 && any(fips_filter != '')) {
+      #   dat_db <- filter(dat_db, fips %in% fips_filter)
+      # }
 
       # Add framework info
       # TO DO: we can join with fixed metadata object if we want until after
@@ -164,7 +175,7 @@ mod_database_server <- function(id,
 
     # Return list of functions that other modules can use
     return(list(
-      get_fips_choices = get_fips_choices,
+      # get_fips_choices = get_fips_choices,
       get_index_choices = get_index_choices,
       get_indicator_choices = get_indicator_choices,
       get_metric_choices = get_metric_choices,
