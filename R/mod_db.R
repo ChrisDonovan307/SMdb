@@ -71,7 +71,12 @@ mod_db_server <- function(id){
     con <- db_connect()
 
     # Use database module
-    database_functions <- mod_database_server('database')
+    database_functions <- mod_database_server(
+      'database',
+      dimension_input = reactive(input$select_dimension),
+      index_input = reactive(input$select_index),
+      indicator_input = reactive(input$select_indicator)
+    )
 
     # Update filter choices using database module functions
     observe({
@@ -91,25 +96,28 @@ mod_db_server <- function(id){
       )
     })
     observe({
+      index_choices <- database_functions$get_index_choices()
       updateSelectizeInput(
         inputId = "select_index",
-        choices = database_functions$get_index_choices(input$select_dimension),
+        choices = index_choices,
         server = TRUE,
         selected = NULL
       )
     })
     observe({
+      indicator_choices <- database_functions$get_indicator_choices()
       updateSelectizeInput(
         inputId = "select_indicator",
-        choices = database_functions$get_indicator_choices(input$select_index),
+        choices = indicator_choices,
         server = TRUE,
         selected = NULL
       )
     })
     observe({
+      metric_choices <- database_functions$get_metric_choices()
       updateSelectizeInput(
         inputId = "select_metric",
-        choices = database_functions$get_metric_choices(input$select_indicator),
+        choices = metric_choices,
         server = TRUE,
         selected = NULL
       )

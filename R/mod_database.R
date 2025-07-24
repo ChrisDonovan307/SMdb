@@ -27,7 +27,10 @@ mod_database_ui <- function(id) {
 #' @return A list containing reactive functions for database operations
 #'
 #' @noRd
-mod_database_server <- function(id) {
+mod_database_server <- function(id,
+                                dimension_input = reactive(NULL),
+                                index_input = reactive(NULL),
+                                indicator_input = reactive(NULL)) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -40,71 +43,88 @@ mod_database_server <- function(id) {
 
     # Reactive function to get available FIPS codes
     get_fips_choices <- reactive({
-      vars <- dbGetQuery(con, 'SELECT DISTINCT fips FROM metrics ORDER BY fips')
-      vars %>%
+      dbGetQuery(con, 'SELECT DISTINCT fips FROM metrics ORDER BY fips') %>%
         filter(fips %in% fips_key$fips) %>%
         pull(fips) %>%
         unique() %>%
         sort()
     })
 
-    # Function to get available index choices based on inputs and metadata
-    get_index_choices <- function(dimension_filter = NULL) {
+    # Reactive function to get index choices based on user inputs and metadata
+    get_index_choices <- reactive({
+      dimension_filter = dimension_input()
+      out <- framework
+
       if (!is.null(dimension_filter) && any(dimension_filter != '')) {
-        out <- metadata %>%
-          filter(dimension %in% tolower(dimension_filter)) %>%
-          pull(index) %>%
-          unique()
-      } else {
-        out <- metadata$index %>%
-          unique()
+        out <- out %>%
+          filter(dimension %in% tolower(dimension_filter))
       }
-      sort(out)
-    }
 
-    # Get indicator choices
-    get_indicator_choices <- function(index_filter = NULL) {
+      sort(unique(out$index))
+    })
+
+    # Get reactive indicator choices based on user inputs
+    get_indicator_choices <- reactive({
+      dimension_filter = dimension_input()
+      index_filter = index_input()
+      out <- framework
+
+      if (!is.null(dimension_filter) && any(dimension_filter != '')) {
+        out <- out %>%
+          filter(dimension %in% tolower(dimension_filter))
+      }
       if (!is.null(index_filter) && any(index_filter != '')) {
-        out <- metadata %>%
-          filter(index %in% tolower(index_filter)) %>%
-          pull(indicator) %>%
-          unique()
-      } else {
-        out <- metadata$indicator %>%
-          unique()
+        out <- out %>%
+          filter(index %in% tolower(index_filter))
       }
-      sort(out)
-    }
 
-    # Function to get available metric choices based on metadata
-    get_metric_choices <- function(indicator_filter = NULL) {
-      if (!is.null(indicator_filter) && any(indicator_filter != '')) {
-        out <- metadata %>%
-          filter(indicator %in% tolower(indicator_filter)) %>%
-          pull(metric)
-      } else {
-        out <- metadata$metric
+      sort(unique(out$indicator))
+    })
+
+    # Get reactive metric choices based on user inputs
+    get_metric_choices <- reactive({
+      dimension_filter = dimension_input()
+      index_filter = index_input()
+      indicator_filter = indicator_input()
+      out <- framework
+
+      # Filter by dimension
+      if (!is.null(dimension_filter) && any(dimension_filter != '')) {
+        out <- out %>%
+          filter(dimension %in% tolower(dimension_filter))
       }
-      sort(out)
-    }
+
+      # Filter by index
+      if (!is.null(index_filter) && any(index_filter != '')) {
+        out <- out %>%
+          filter(index %in% tolower(index_filter))
+      }
+
+      # Filter by indicator
+      if (!is.null(indicator_filter) && any(indicator_filter != '')) {
+        out <- out %>%
+          filter(indicator %in% tolower(indicator_filter))
+      }
+
+      # Return filtered metrics
+      sort(unique(out$metric))
+    })
 
     # Function to filter metrics data based on parameters
     # NOTE: this could be pulled out as a utils function
+    # and DRY refactor
     get_filtered_data <- function(fips_filter = NULL,
                                   dimension_filter = NULL,
                                   index_filter = NULL,
                                   indicator_filter = NULL,
                                   metric_filter = NULL) {
-      # frame <- tbl(con, 'metadata') %>%
-      #   select(dimension, index, indicator, metric, variable_name) %>%
-      #   unique()
 
       dat_db <- tbl(con, 'metrics')
-        # left_join(frame)
 
-      # Start with indicator, if nothing, go backward through index, then dimension
+      # Start filtering by indicator, go backward through index, then dimension
+      # So we avoid filtering more than we need to if we went dim -> indicator
       if (!is.null(indicator_filter) && length(indicator_filter) > 0 && any(indicator_filter != '')) {
-        match <- unique(framework$variable_name[framework$indicator_filter %in% tolower(indicator_filter)])
+        match <- unique(framework$variable_name[framework$indicator %in% tolower(indicator_filter)])
         dat_db <- filter(dat_db, variable_name %in% match)
       } else if (!is.null(dimension_filter) && length(dimension_filter) > 0 && any(dimension_filter != '')) {
         match <- framework$variable_name[framework$dimension %in% tolower(dimension_filter)]
@@ -113,7 +133,7 @@ mod_database_server <- function(id) {
         match <- unique(framework$variable_name[framework$index %in% tolower(index_filter)])
         dat_db <- filter(dat_db, variable_name %in% match)
       } else if (!is.null(metric_filter) && length(metric_filter) > 0 && any(metric_filter != '')) {
-        match <- unique(framework$variable_name[framework$metric %in% tolower(metric_filter)])
+        match <- unique(framework$variable_name[tolower(framework$metric) %in% tolower(metric_filter)])
         dat_db <- filter(dat_db, variable_name %in% match)
       }
 
@@ -123,11 +143,21 @@ mod_database_server <- function(id) {
       }
 
       # Add framework info
+      # TO DO: we can join with fixed metadata object if we want until after
+      # we collect dat_db. Should be less querying DB
+      # TO DO: add an option to include metadata or not. Could be separate file?
       meta_db <- tbl(con, 'metadata')
-      # browser()
       dat_db <- meta_db %>%
-        select(dimension, index, indicator, metric, variable_name) %>%
-        left_join(dat_db)
+        select(
+          dimension,
+          index,
+          indicator,
+          metric,
+          variable_name,
+          definition,
+          units
+        ) %>%
+        right_join(dat_db)
 
       collect(dat_db)
     }
