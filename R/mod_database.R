@@ -10,6 +10,7 @@
 #' @import RMySQL
 #' @import dplyr
 #' @import dbplyr
+#' @import shinycssloaders
 mod_database_ui <- function(id) {
   ns <- NS(id)
 
@@ -33,6 +34,7 @@ mod_database_server <- function(id,
                                 index_input = reactive(NULL),
                                 indicator_input = reactive(NULL),
                                 geography_input = reactive(NULL),
+                                meta_input = reactive(NULL),
                                 query_trigger = reactive(NULL)) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
@@ -89,6 +91,7 @@ mod_database_server <- function(id,
       dimension_filter = dimension_input()
       index_filter = index_input()
       indicator_filter = indicator_input()
+      meta_filter = meta_input()
       out <- framework
 
       # Filter by dimension
@@ -113,6 +116,7 @@ mod_database_server <- function(id,
       sort(unique(out$metric))
     })
 
+    # internal data ----
     # Function to filter metrics data based on parameters
     # NOTE: this could be pulled out as a utils function
     # and DRY refactor
@@ -121,11 +125,12 @@ mod_database_server <- function(id,
                                            index_filter = NULL,
                                            indicator_filter = NULL,
                                            metric_filter = NULL,
+                                           meta_filter = NULL,
                                            geography_filter = NULL) {
 
       dat_db <- tbl(con, 'metrics')
 
-      # Filter by geography type
+      # Filter by geography ----
       if (!is.null(geography_filter) && length(geography_filter) > 0 && any(geography_filter != '')) {
         if (geography_filter == 'Counties') {
           dat_db <- filter(dat_db, str_length(fips) == 5)
@@ -134,6 +139,7 @@ mod_database_server <- function(id,
         }
       }
 
+      # Filter by framework ----
       # Start filtering by indicator, go backward through index, then dimension
       # So we avoid filtering more than we need to if we went dim -> indicator
       if (!is.null(indicator_filter) && length(indicator_filter) > 0 && any(indicator_filter != '')) {
@@ -150,37 +156,46 @@ mod_database_server <- function(id,
         dat_db <- filter(dat_db, variable_name %in% match)
       }
 
-      # # Filter by FIPS selection
+      # # Filter by FIPS ----
       # if (!is.null(fips_filter) && length(fips_filter) > 0 && any(fips_filter != '')) {
       #   dat_db <- filter(dat_db, fips %in% fips_filter)
       # }
 
-      # Add framework info
-      # TO DO: we can join with fixed metadata object if we want until after
+      # Add metadata ----
+      # TODO: we can join with fixed metadata object if we want until after
       # we collect dat_db. Should be less querying DB
-      # TO DO: add an option to include metadata or not. Could be separate file?
-      meta_db <- tbl(con, 'metadata')
-      dat_db <- meta_db %>%
-        select(
-          dimension,
-          index,
-          indicator,
-          metric,
-          variable_name,
-          definition,
-          units
-        ) %>%
-        right_join(dat_db)
+      if (!is.null(meta_input) && meta_input()) {
+        meta_db <- tbl(con, 'metadata')
+        dat_db <- meta_db %>%
+          select(
+            dimension,
+            index,
+            indicator,
+            metric,
+            variable_name,
+            definition,
+            units
+          ) %>%
+          right_join(dat_db)
+      }
 
       collect(dat_db)
     }
 
+    # get filtered_data ----
     # Store the filtered data that only updates when query button is clicked
     filtered_data <- reactiveVal(data.frame())
 
     # Update filtered data only when query_trigger changes (button is clicked)
     observeEvent(query_trigger(), {
       req(query_trigger()) # Ensure the trigger is not NULL/0
+      showPageSpinner(
+        type = 6,
+        size = 1,
+        color = 'black',
+        # color = '#154734',
+        caption = HTML('Loading... Large queries can take a few seconds')
+      )
 
       new_data <- get_filtered_data_internal(
         dimension_filter = dimension_input(),
@@ -189,6 +204,7 @@ mod_database_server <- function(id,
         geography_filter = geography_input()
       )
 
+      hidePageSpinner()
       filtered_data(new_data)
     })
 

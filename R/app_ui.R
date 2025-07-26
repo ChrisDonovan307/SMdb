@@ -4,6 +4,7 @@
 #'     DO NOT REMOVE.
 #' @import shiny
 #' @import bslib
+#' @import waiter
 #' @noRd
 app_ui <- function(request) {
   tagList(
@@ -16,7 +17,10 @@ app_ui <- function(request) {
       style = 'padding-left: 20px; padding-top: 10px;'
     ),
     fluidPage(
-      theme = bslib::bs_theme(bootswatch = 'lux'),
+      theme = bslib::bs_theme(
+        bootswatch = 'lux',
+        primary = '#154734'
+      ),
       mod_db_ui("db_1")
     )
   )

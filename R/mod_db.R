@@ -13,6 +13,7 @@
 #' @import dplyr
 #' @import dbplyr
 #' @import shinyWidgets
+#' @import shinycssloaders
 mod_db_ui <- function(id) {
   ns <- NS(id)
   tagList(
@@ -54,16 +55,16 @@ mod_db_ui <- function(id) {
           choices = c('All', 'Counties', 'States'),
           multiple = FALSE
         ),
-        # selectizeInput(
-        #   ns('select_fips'),
-        #   "FIPS Code",
-        #   choices = NULL,
-        #   multiple = TRUE
-        # ),
+        awesomeCheckbox(
+          ns('select_meta'),
+          label = "Include metadata",
+          status = 'primary',
+          value = FALSE
+        ),
         actionBttn(
           ns("query"),
           "Query",
-          color = 'success',
+          color = 'primary',
           style = 'fill',
           icon = icon(
             name = 'magnifying-glass',
@@ -73,7 +74,7 @@ mod_db_ui <- function(id) {
         downloadBttn(
           ns('download'),
           'Download',
-          color = 'success',
+          color = 'primary',
           style = 'fill',
           icon = icon(
             name = 'download',
@@ -94,15 +95,22 @@ mod_db_server <- function(id){
     ns <- session$ns
     con <- db_connect()
 
-    # Use database module
+    # observe({
+    #   browser()
+    #   print(input$select_meta)
+    # })
+
+    # mod_database functions ----
     database_functions <- mod_database_server(
       'database',
       dimension_input = reactive(input$select_dimension),
       index_input = reactive(input$select_index),
       indicator_input = reactive(input$select_indicator),
+      meta_input = reactive(input$select_meta),
       query_trigger = reactive(input$query)
     )
 
+    # Filter dropdowns ----
     # Update filter choices using database module functions
     # observe({
     #   updateSelectizeInput(
@@ -148,19 +156,10 @@ mod_db_server <- function(id){
       )
     })
 
-    # Database function for getting filtered data
-    # filtered_df <- reactive({
-    #   database_functions$get_filtered_data(
-    #     dimension_filter = input$select_dimension,
-    #     index_filter = input$select_index,
-    #     indicator_filter = input$select_indicator,
-    #     metric_filter = input$select_metric,
-    #     # fips_filter = input$select_fips,
-    #     geography_filter = input$select_geography
-    #   )
-    # })
+    # Filtered data ----
     filtered_df <- database_functions$get_filtered_data
 
+    # Table output ----
     # Make table appear when user hits query
     output$table_ui <- renderUI({
       req(input$query)
@@ -175,7 +174,7 @@ mod_db_server <- function(id){
       names(df) <- snakecase::to_title_case(names(df))
       names(df) <- sub('Fips', 'FIPS Code', names(df))
 
-      get_reactable(
+      out <- get_reactable(
         df,
         defaultColDef = colDef(
           headerStyle = list(
@@ -184,8 +183,10 @@ mod_db_server <- function(id){
             fontSize = '16px'
           )
         )
-        # columns = list('Variable Name' = colDef(minWidth = 200))
+      # columns = list('Variable Name' = colDef(minWidth = 200))
       )
+      # hidePageSpinner()
+      out
     })
 
     # Download CSV of table ----

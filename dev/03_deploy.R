@@ -40,6 +40,7 @@ golem::add_shinyserver_file()
 ## Deploy to Posit Connect or ShinyApps.io ----
 
 ## Add/update manifest file (optional; for Git backed deployment on Posit )
+# Sys.setenv(R_ENVIRON_USER = "/c/Users/cdonov12/local/repos/SMdb/.Renviron-prod")
 rsconnect::writeManifest()
 
 ## In command line.
