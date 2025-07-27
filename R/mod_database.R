@@ -33,6 +33,8 @@ mod_database_server <- function(id,
                                 dimension_input = reactive(NULL),
                                 index_input = reactive(NULL),
                                 indicator_input = reactive(NULL),
+                                metric_input = reactive(NULL),
+                                state_input = reactive(NULL),
                                 geography_input = reactive(NULL),
                                 meta_input = reactive(NULL),
                                 query_trigger = reactive(NULL)) {
@@ -46,47 +48,34 @@ mod_database_server <- function(id,
     metadata <- dbGetQuery(con, 'SELECT * FROM metadata')
     framework <- select(metadata, dimension, index, indicator, metric, variable_name)
 
-    # Reactive function to get available FIPS codes
-    get_fips_choices <- reactive({
-      dbGetQuery(con, 'SELECT DISTINCT fips FROM metrics ORDER BY fips') %>%
-        filter(fips %in% fips_key$fips) %>%
-        pull(fips) %>%
-        unique() %>%
-        sort()
-    })
 
-    # Reactive function to get index choices based on user inputs and metadata
+    # Get index choices ----
     get_index_choices <- reactive({
       dimension_filter = dimension_input()
       out <- framework
-
       if (!is.null(dimension_filter) && any(dimension_filter != '')) {
-        out <- out %>%
-          filter(dimension %in% tolower(dimension_filter))
+        out <- out %>% filter(dimension %in% tolower(dimension_filter))
       }
-
       sort(unique(out$index))
     })
 
-    # Get reactive indicator choices based on user inputs
+
+    # Get indicator choices ----
     get_indicator_choices <- reactive({
       dimension_filter = dimension_input()
       index_filter = index_input()
       out <- framework
-
       if (!is.null(dimension_filter) && any(dimension_filter != '')) {
-        out <- out %>%
-          filter(dimension %in% tolower(dimension_filter))
+        out <- out %>% filter(dimension %in% tolower(dimension_filter))
       }
       if (!is.null(index_filter) && any(index_filter != '')) {
-        out <- out %>%
-          filter(index %in% tolower(index_filter))
+        out <- out %>% filter(index %in% tolower(index_filter))
       }
-
       sort(unique(out$indicator))
     })
 
-    # Get reactive metric choices based on user inputs
+
+    # Get metric choices ----
     get_metric_choices <- reactive({
       dimension_filter = dimension_input()
       index_filter = index_input()
@@ -94,50 +83,60 @@ mod_database_server <- function(id,
       meta_filter = meta_input()
       out <- framework
 
-      # Filter by dimension
+      # Filter by dimension, index, indicator
       if (!is.null(dimension_filter) && any(dimension_filter != '')) {
-        out <- out %>%
-          filter(dimension %in% tolower(dimension_filter))
+        out <- out %>% filter(dimension %in% tolower(dimension_filter))
       }
-
-      # Filter by index
       if (!is.null(index_filter) && any(index_filter != '')) {
-        out <- out %>%
-          filter(index %in% tolower(index_filter))
+        out <- out %>% filter(index %in% tolower(index_filter))
       }
-
-      # Filter by indicator
       if (!is.null(indicator_filter) && any(indicator_filter != '')) {
-        out <- out %>%
-          filter(indicator %in% tolower(indicator_filter))
+        out <- out %>% filter(indicator %in% tolower(indicator_filter))
       }
 
       # Return filtered metrics
       sort(unique(out$metric))
     })
 
-    # internal data ----
+
+    # Get internal data ----
     # Function to filter metrics data based on parameters
     # NOTE: this could be pulled out as a utils function
     # and DRY refactor
     get_filtered_data_internal <- function(dimension_filter = NULL,
-                                           # fips_filter = NULL,
                                            index_filter = NULL,
                                            indicator_filter = NULL,
                                            metric_filter = NULL,
                                            meta_filter = NULL,
+                                           state_filter = NULL,
                                            geography_filter = NULL) {
 
       dat_db <- tbl(con, 'metrics')
 
-      # Filter by geography ----
+      # Filter by geography type ----
       if (!is.null(geography_filter) && length(geography_filter) > 0 && any(geography_filter != '')) {
         if (geography_filter == 'Counties') {
           dat_db <- filter(dat_db, str_length(fips) == 5)
         } else if (geography_filter == 'States') {
           dat_db <- filter(dat_db, str_length(fips) == 2)
         }
+        # Default is 'All' - no filters
       }
+
+      # Filter by state ----
+      # If Northeast, just filter to fips key. Otherwise, specific states
+      if (!is.null(state_filter) && length(state_filter) > 0 && any(state_filter != '')) {
+        if (state_filter == 'Northeast') {
+          dat_db <- filter(dat_db, fips %in% fips_key$fips)
+        } else {
+          # Get fips codes according to states
+          matched_fips <- fips_key %>%
+            filter(state_name %in% state_filter) %>%
+            pull(fips)
+          dat_db <- filter(dat_db, fips %in% matched_fips)
+        }
+      }
+
 
       # Filter by framework ----
       # Start filtering by indicator, go backward through index, then dimension
@@ -162,8 +161,6 @@ mod_database_server <- function(id,
       # }
 
       # Add metadata ----
-      # TODO: we can join with fixed metadata object if we want until after
-      # we collect dat_db. Should be less querying DB
       if (!is.null(meta_input) && meta_input()) {
         meta_db <- tbl(con, 'metadata')
         dat_db <- meta_db %>%
@@ -179,10 +176,11 @@ mod_database_server <- function(id,
           right_join(dat_db)
       }
 
+      # Run queries and get data from DB
       collect(dat_db)
     }
 
-    # get filtered_data ----
+    # Get filtered_data ----
     # Store the filtered data that only updates when query button is clicked
     filtered_data <- reactiveVal(data.frame())
 
@@ -201,7 +199,9 @@ mod_database_server <- function(id,
         dimension_filter = dimension_input(),
         index_filter = index_input(),
         indicator_filter = indicator_input(),
-        geography_filter = geography_input()
+        metric_filter = metric_input(),
+        geography_filter = geography_input(),
+        state_filter = state_input()
       )
 
       hidePageSpinner()
@@ -213,7 +213,7 @@ mod_database_server <- function(id,
       filtered_data()
     })
 
-    # Return list of functions that other modules can use
+    # Return list of functions to use in other modules
     return(list(
       # get_fips_choices = get_fips_choices,
       get_index_choices = get_index_choices,

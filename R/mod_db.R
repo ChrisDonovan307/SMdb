@@ -50,6 +50,24 @@ mod_db_ui <- function(id) {
           multiple = TRUE
         ),
         selectInput(
+          ns('select_state'),
+          'States',
+          choices = c(
+            'Northeast',
+            'Connecticut',
+            'Maine',
+            'Massachusetts',
+            'New Hampshire',
+            'New Jersey',
+            'New York',
+            'Pennsylvania',
+            'Rhode Island',
+            'Vermont'
+          ),
+          multiple = TRUE,
+          selected = 'Northeast'
+        ),
+        selectInput(
           ns('select_geography'),
           'Geography',
           choices = c('All', 'Counties', 'States'),
@@ -106,20 +124,14 @@ mod_db_server <- function(id){
       dimension_input = reactive(input$select_dimension),
       index_input = reactive(input$select_index),
       indicator_input = reactive(input$select_indicator),
+      metric_input = reactive(input$select_metric),
       meta_input = reactive(input$select_meta),
+      geography_input = reactive(input$select_geography),
+      state_input = reactive(input$select_state),
       query_trigger = reactive(input$query)
     )
 
     # Filter dropdowns ----
-    # Update filter choices using database module functions
-    # observe({
-    #   updateSelectizeInput(
-    #     inputId = "select_fips",
-    #     choices = database_functions$get_fips_choices(),
-    #     server = TRUE,
-    #     selected = NULL
-    #   )
-    # })
     observe({
       updateSelectizeInput(
         inputId = "select_dimension",
@@ -156,8 +168,10 @@ mod_db_server <- function(id){
       )
     })
 
+
     # Filtered data ----
     filtered_df <- database_functions$get_filtered_data
+
 
     # Table output ----
     # Make table appear when user hits query
@@ -199,14 +213,7 @@ mod_db_server <- function(id){
         )
       },
       content = function(file) {
-        out <- filtered_df() %>%
-          select(
-            fips,
-            year,
-            variable_name,
-            value
-          )
-        write.csv(out, file, row.names = FALSE)
+        write.csv(filtered_df(), file, row.names = FALSE)
       },
       contentType = 'text/csv'
     )
