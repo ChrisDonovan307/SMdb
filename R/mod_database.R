@@ -126,7 +126,7 @@ mod_database_server <- function(id,
       # Filter by state ----
       # If Northeast, just filter to fips key. Otherwise, specific states
       if (!is.null(state_filter) && length(state_filter) > 0 && any(state_filter != '')) {
-        if (state_filter == 'Northeast') {
+        if ('Northeast' %in% state_filter) {
           dat_db <- filter(dat_db, fips %in% fips_key$fips)
         } else {
           # Get fips codes according to states
@@ -187,12 +187,16 @@ mod_database_server <- function(id,
     # Update filtered data only when query_trigger changes (button is clicked)
     observeEvent(query_trigger(), {
       req(query_trigger()) # Ensure the trigger is not NULL/0
+      # if (meta_input()) {
+      #   caption <- 'Loading...'
+      # } else {
+      #   caption <- 'Loading...'
+      # }
       showPageSpinner(
         type = 6,
         size = 1,
         color = 'black',
-        # color = '#154734',
-        caption = HTML('Loading... Large queries can take a few seconds')
+        caption = 'Querying database...'
       )
 
       new_data <- get_filtered_data_internal(

@@ -182,6 +182,12 @@ mod_db_server <- function(id){
 
     # Use filtered df from db to make table
     output$table <- renderReactable({
+      showPageSpinner(
+        type = 6,
+        size = 1,
+        color = 'black',
+        caption = 'Building table...'
+      )
       df <- filtered_df()
 
       if ('id' %in% names(df)) df$id <- NULL
@@ -199,7 +205,7 @@ mod_db_server <- function(id){
         )
       # columns = list('Variable Name' = colDef(minWidth = 200))
       )
-      # hidePageSpinner()
+      hidePageSpinner()
       out
     })
 
