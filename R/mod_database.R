@@ -111,7 +111,8 @@ mod_database_server <- function(id,
                                            state_filter = NULL,
                                            geography_filter = NULL) {
 
-      dat_db <- tbl(con, 'metrics')
+      dat_db <- tbl(con, 'metrics') %>%
+        select(-(any_of('id')))
 
       # Filter by geography type ----
       if (!is.null(geography_filter) && length(geography_filter) > 0 && any(geography_filter != '')) {
@@ -141,17 +142,17 @@ mod_database_server <- function(id,
       # Filter by framework ----
       # Start filtering by indicator, go backward through index, then dimension
       # So we avoid filtering more than we need to if we went dim -> indicator
-      if (!is.null(indicator_filter) && length(indicator_filter) > 0 && any(indicator_filter != '')) {
-        match <- unique(framework$variable_name[framework$indicator %in% tolower(indicator_filter)])
+      if (!is.null(metric_filter) && length(metric_filter) > 0 && any(metric_filter != '')) {
+        match <- unique(framework$variable_name[tolower(framework$metric) %in% tolower(metric_filter)])
         dat_db <- filter(dat_db, variable_name %in% match)
-      } else if (!is.null(dimension_filter) && length(dimension_filter) > 0 && any(dimension_filter != '')) {
-        match <- framework$variable_name[framework$dimension %in% tolower(dimension_filter)]
+      } else if (!is.null(indicator_filter) && length(indicator_filter) > 0 && any(indicator_filter != '')) {
+        match <- unique(framework$variable_name[framework$indicator %in% tolower(indicator_filter)])
         dat_db <- filter(dat_db, variable_name %in% match)
       } else if (!is.null(index_filter) && length(index_filter) > 0 && any(index_filter != '')) {
         match <- unique(framework$variable_name[framework$index %in% tolower(index_filter)])
         dat_db <- filter(dat_db, variable_name %in% match)
-      } else if (!is.null(metric_filter) && length(metric_filter) > 0 && any(metric_filter != '')) {
-        match <- unique(framework$variable_name[tolower(framework$metric) %in% tolower(metric_filter)])
+      } else if (!is.null(dimension_filter) && length(dimension_filter) > 0 && any(dimension_filter != '')) {
+        match <- framework$variable_name[framework$dimension %in% tolower(dimension_filter)]
         dat_db <- filter(dat_db, variable_name %in% match)
       }
 
